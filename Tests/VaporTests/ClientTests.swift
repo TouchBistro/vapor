@@ -1,3 +1,8 @@
+#if os(Linux)
+@preconcurrency import Foundation
+#else
+import Foundation
+#endif
 import XCTest
 import Vapor
 import NIOCore
@@ -72,10 +77,15 @@ final class ClientTests: XCTestCase {
             $0.redirect(to: "foo")
         }
 
-        try app.server.start(address: .hostname("localhost", port: 8080))
+        try app.server.start(address: .hostname("localhost", port: 0))
         defer { app.server.shutdown() }
+        
+        guard let port = app.http.server.shared.localAddress?.port else {
+            XCTFail("Failed to get port for app")
+            return
+        }
 
-        let res = try app.client.get("http://localhost:8080/redirect").wait()
+        let res = try app.client.get("http://localhost:\(port)/redirect").wait()
 
         XCTAssertEqual(res.status, .seeOther)
     }
@@ -90,13 +100,18 @@ final class ClientTests: XCTestCase {
             $0.redirect(to: "foo")
         }
 
-        try app.server.start(address: .hostname("localhost", port: 8080))
+        try app.server.start(address: .hostname("localhost", port: 0))
         defer { app.server.shutdown() }
+        
+        guard let port = app.http.server.shared.localAddress?.port else {
+            XCTFail("Failed to get port for app")
+            return
+        }
 
-        _ = try app.client.get("http://localhost:8080/redirect").wait()
+        _ = try app.client.get("http://localhost:\(port)/redirect").wait()
         
         app.http.client.configuration.redirectConfiguration = .follow(max: 1, allowCycles: false)
-        let res = try app.client.get("http://localhost:8080/redirect").wait()
+        let res = try app.client.get("http://localhost:\(port)/redirect").wait()
         XCTAssertEqual(res.status, .seeOther)
     }
 
